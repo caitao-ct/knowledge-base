@@ -1,4 +1,5 @@
 .DS_Store
+Thumbs.db
 .vitepress/cache
 docs/.vitepress/dist
 mcp-server/.chroma
@@ -9,3 +10,12 @@ __pycache__/
 .python-version
 package-lock.json
 .env
+
+# IDEs
+.vscode/
+.idea/
+
+# Python Virtual Environments
+venv/
+env/
+.venv/
