@@ -8,7 +8,6 @@ node_modules
 __pycache__/
 *.pyc
 .python-version
-package-lock.json
 .env
 
 # IDEs
