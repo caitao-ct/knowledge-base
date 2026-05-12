@@ -1,0 +1,11 @@
+.DS_Store
+.vitepress/cache
+docs/.vitepress/dist
+mcp-server/.chroma
+mcp-server/.venv
+node_modules
+__pycache__/
+*.pyc
+.python-version
+package-lock.json
+.env

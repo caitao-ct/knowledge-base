@@ -1,0 +1,9 @@
+#!/bin/bash
+# 知识库 MCP Server 启动脚本
+# 安装: 放到 PATH 里，所有工具统一使用
+cd "$(dirname "$0")/../mcp-server" || exit 1
+export HF_ENDPOINT="${HF_ENDPOINT:-https://hf-mirror.com}"
+if [ -x ".venv/bin/python" ]; then
+  exec .venv/bin/python server.py "$@"
+fi
+exec python3 server.py "$@"

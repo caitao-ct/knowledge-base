@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "knowledge": {
+      "command": "bash",
+      "args": [
+        "-lc",
+        "cd /path/to/knowledge && ./bin/knowledge-mcp --transport stdio"
+      ],
+      "env": {
+        "KB_DIR": "/path/to/knowledge/docs",
+        "CHROMA_DIR": "/path/to/knowledge/mcp-server/.chroma",
+        "CHROMA_COLLECTION": "knowledge",
+        "EMBED_MODEL": "BAAI/bge-small-zh-v1.5",
+        "INDEX_ON_STARTUP": "true"
+      }
+    }
+  }
+}
+

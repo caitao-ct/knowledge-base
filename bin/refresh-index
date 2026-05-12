@@ -1,0 +1,40 @@
+#!/bin/bash
+# 知识库 MCP Server 独立刷新索引脚本
+# 用于手动或在 CI/CD 流程中快速更新知识库的 Chroma 向量索引
+
+cd "$(dirname "$0")/../mcp-server" || exit 1
+export HF_ENDPOINT="${HF_ENDPOINT:-https://hf-mirror.com}"
+
+# 创建一个临时的 python 脚本来执行刷新逻辑
+cat << 'EOF' > /tmp/refresh_index.py
+import sys
+import os
+sys.path.insert(0, os.getcwd())
+from server import KnowledgeIndex, args
+
+def main():
+    print("🔄 开始刷新知识库向量索引...")
+    try:
+        indexer = KnowledgeIndex(
+            kb_dir=args.kb_dir,
+            chroma_dir=args.chroma_dir,
+            collection=args.collection,
+            embed_model=args.embed_model,
+        )
+        stats = indexer.index_knowledge()
+        print(f"✅ 索引刷新完成！")
+        print(f"   - 新增文档数: {stats['files_added']}")
+        print(f"   - 更新文档数: {stats['files_updated']}")
+        print(f"   - 移除文档数: {stats['files_removed']}")
+    except Exception as e:
+        print(f"❌ 刷新索引时发生错误: {e}")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()
+EOF
+
+if [ -x ".venv/bin/python" ]; then
+  exec .venv/bin/python /tmp/refresh_index.py "$@"
+fi
+exec python3 /tmp/refresh_index.py "$@"
