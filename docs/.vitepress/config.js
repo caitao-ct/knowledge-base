@@ -1,6 +1,7 @@
 import { defineConfig } from 'vitepress'
 
 export default defineConfig({
+  base: '/knowledge/',
   title: '前端知识库',
   description: '前端组件、业务规则、编码规范',
   lang: 'zh-CN',
