@@ -2,7 +2,13 @@
 MCP RAG Server — 知识库语义搜索
 用法: python server.py
 """
-import os, glob, json, asyncio, argparse, hashlib
+import os
+import glob
+import json
+import asyncio
+import argparse
+import hashlib
+import signal
 from pathlib import Path
 
 import chromadb
@@ -17,6 +23,18 @@ DEFAULT_CHROMA_DIR = (Path(__file__).resolve().parent / ".chroma").as_posix()
 DEFAULT_COLLECTION = "knowledge"
 DEFAULT_EMBED_MODEL = "BAAI/bge-small-zh-v1.5"
 DEFAULT_INDEX_ON_STARTUP = True
+
+# 资源列表缓存 TTL（秒），0 表示禁用缓存
+RESOURCE_CACHE_TTL = 300
+
+# 操作超时（秒）
+EMBED_TIMEOUT = 30
+INDEX_TIMEOUT = 300
+
+# 常量
+SCHEME_KB = "kb"
+METADATA_HNSW_SPACE = "cosine"
+METADATA_HNSW_KEY = "hnsw:space"
 
 # HuggingFace 国内镜像
 os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
@@ -86,7 +104,7 @@ class KnowledgeIndex:
     def get_collection(self):
         return self.chroma.get_or_create_collection(
             self.collection_name,
-            metadata={"hnsw:space": "cosine"},
+            metadata={METADATA_HNSW_KEY: METADATA_HNSW_SPACE},
         )
 
     def chunk_markdown(self, text: str, source: str) -> list[dict]:
@@ -175,7 +193,17 @@ class KnowledgeIndex:
         return {"files_added": added, "files_updated": updated, "files_removed": removed}
 
     async def embed_query(self, query: str) -> list[float]:
-        return (await asyncio.to_thread(self.model.encode, query, show_progress_bar=False)).tolist()
+        def timeout_handler(signum, frame):
+            raise TimeoutError(f"embed_query 超时 ({EMBED_TIMEOUT}s)")
+
+        # 设置超时
+        signal.signal(signal.SIGALRM, timeout_handler)
+        signal.alarm(EMBED_TIMEOUT)
+        try:
+            result = await asyncio.to_thread(self.model.encode, query, show_progress_bar=False)
+            return result.tolist()
+        finally:
+            signal.alarm(0)  # 取消闹钟
 
 
 args = parse_args()
@@ -266,20 +294,55 @@ async def call_tool(name: str, arguments: dict):
 
     if name == "refresh_index":
         stats = await asyncio.to_thread(indexer.index_knowledge)
+        _resource_cache.invalidate()
         return [TextContent(type="text", text=json.dumps({"ok": True, "stats": stats}, ensure_ascii=False, indent=2))]
 
     raise ValueError(f"未知工具: {name}")
 
+class ResourceCache:
+    """简单的资源列表缓存"""
+
+    def __init__(self, ttl: int = 300):
+        self._cache: dict | None = None
+        self._cache_time: float = 0
+        self._ttl = ttl
+
+    def get(self) -> dict | None:
+        if self._ttl <= 0 or self._cache is None:
+            return None
+        import time
+        if time.time() - self._cache_time > self._ttl:
+            self._cache = None
+        return self._cache
+
+    def set(self, data: dict) -> None:
+        if self._ttl <= 0:
+            return
+        import time
+        self._cache = data
+        self._cache_time = time.time()
+
+    def invalidate(self) -> None:
+        self._cache = None
+
+
+_resource_cache = ResourceCache(ttl=RESOURCE_CACHE_TTL)
+
+
 @server.list_resources()
 async def list_resources():
     from mcp.types import Resource
+
+    cached = _resource_cache.get()
+    if cached is not None:
+        return cached
 
     kb_dir = Path(indexer.kb_dir)
     md_files = glob.glob(str(kb_dir / "**" / "*.md"), recursive=True)
     resources = []
     for fpath in md_files:
         rel_path = os.path.relpath(fpath, indexer.kb_dir)
-        uri = f"kb:///{rel_path}"
+        uri = f"{SCHEME_KB}:///{rel_path}"
         try:
             size = Path(fpath).stat().st_size
         except OSError:
@@ -293,6 +356,8 @@ async def list_resources():
                 size=size,
             )
         )
+
+    _resource_cache.set(resources)
     return resources
 
 
@@ -301,7 +366,7 @@ async def read_resource(uri):
     from urllib.parse import urlparse, unquote
 
     parsed = urlparse(str(uri))
-    if parsed.scheme != "kb":
+    if parsed.scheme != SCHEME_KB:
         raise ValueError("Unsupported uri")
     rel_path = unquote(parsed.path.lstrip("/"))
     fpath = safe_join(indexer.kb_dir, rel_path)

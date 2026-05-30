@@ -3,6 +3,10 @@ name: Deploy VitePress site to Pages
 on:
   push:
     branches: [main]
+    paths:
+      - 'docs/**'
+      - 'package.json'
+      - '.github/workflows/deploy-docs.yml'
 
 permissions:
   contents: read

@@ -9,6 +9,7 @@ __pycache__/
 *.pyc
 .python-version
 .env
+TODO.md
 
 # IDEs
 .vscode/

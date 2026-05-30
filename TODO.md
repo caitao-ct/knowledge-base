@@ -15,16 +15,16 @@
 
 ## P2 - 建议改进
 
-- [ ] **P2-1**: list_resources 添加缓存机制
-- [ ] **P2-2**: 添加重试和超时控制
-- [ ] **P2-3**: package.json 补全 description/author 字段
-- [ ] **P2-4**: deploy-docs.yml 触发条件添加 path filter
+- [x] **P2-1**: list_resources 添加缓存机制
+- [x] **P2-2**: 添加重试和超时控制
+- [x] **P2-3**: package.json 补全 description/author 字段
+- [x] **P2-4**: deploy-docs.yml 触发条件添加 path filter
 
 ## P3 - 可选优化
 
-- [ ] **P3-1**: 提取魔法字符串为常量
-- [ ] **P3-2**: 代码风格统一（import 分组等）
-- [ ] **P3-3**: 补充 API 文档
+- [x] **P3-1**: 提取魔法字符串为常量
+- [x] **P3-2**: 代码风格统一（import 分组等）
+- [x] **P3-3**: 补充 API 文档
 
 ---
 
@@ -39,3 +39,10 @@
 | 2026-05-30 | P1-2 | ✅ 完成 | safe_join 使用 Path.resolve() 和 relative_to() 严格校验 |
 | 2026-05-30 | P1-3 | ✅ 完成 | refresh_index 使用 asyncio.to_thread 避免阻塞 |
 | 2026-05-30 | P1-4 | ✅ 完成 | 添加 pytest 单元测试，完善 CI 流程（添加缓存、path filter） |
+| 2026-05-30 | P2-1 | ✅ 完成 | 添加 ResourceCache 类，默认 TTL 300s，refresh_index 时失效缓存 |
+| 2026-05-30 | P2-2 | ✅ 完成 | embed_query 添加 signal timeout (30s)，INDEX_TIMEOUT 常量定义 |
+| 2026-05-30 | P2-3 | ✅ 完成 | package.json 补全 description/author，重新组织字段顺序 |
+| 2026-05-30 | P2-4 | ✅ 完成 | deploy-docs.yml 添加 paths filter（docs/**, package.json） |
+| 2026-05-30 | P3-1 | ✅ 完成 | 提取 SCHEME_KB, METADATA_HNSW_SPACE, METADATA_HNSW_KEY 常量 |
+| 2026-05-30 | P3-2 | ✅ 完成 | import 语句分组展开（os, glob, json...） |
+| 2026-05-30 | P3-3 | ✅ 完成 | 新增 mcp-server/API.md，包含工具、资源、提示、安全配置说明 |

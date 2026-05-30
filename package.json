@@ -1,20 +1,19 @@
 {
   "name": "knowledge",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "directories": {
-    "doc": "docs"
-  },
+  "description": "双用途知识库项目：VitePress 文档站点 + MCP RAG Server",
+  "author": "caitao",
+  "license": "ISC",
+  "type": "module",
   "scripts": {
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs"
   },
+  "directories": {
+    "doc": "docs"
+  },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "module",
   "dependencies": {
     "vitepress": "^1.6.4"
   }
