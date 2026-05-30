@@ -105,4 +105,5 @@ npm run docs:dev
 ---
 
 ## 📜 许可证
-[MIT License]
+
+本项目基于 [ISC License](LICENSE) 开源。
