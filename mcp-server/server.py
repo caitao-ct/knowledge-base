@@ -40,10 +40,19 @@ def sha1_text(text: str) -> str:
 
 
 def safe_join(base_dir: str, user_path: str) -> Path:
+    """
+    安全地拼接 base_dir 和 user_path，防止路径穿越攻击。
+    使用 Path.resolve() 获取绝对路径并解析 symlink。
+    """
     base = Path(base_dir).resolve()
-    candidate = (base / user_path).resolve()
-    if candidate == base or base not in candidate.parents:
-        raise ValueError("Invalid path")
+    # 防止空路径或绝对路径穿越
+    clean_path = user_path.lstrip("/")
+    candidate = (base / clean_path).resolve()
+    # 检查 candidate 是否在 base 目录内
+    try:
+        candidate.relative_to(base)
+    except ValueError:
+        raise ValueError("Invalid path: 路径穿越检测")
     return candidate
 
 
@@ -66,7 +75,7 @@ class KnowledgeIndex:
             return {"files": {}}
         try:
             return json.loads(self.state_path.read_text(encoding="utf-8"))
-        except Exception:
+        except (json.JSONDecodeError, OSError):
             return {"files": {}}
 
     def save_state(self, state: dict) -> None:
@@ -249,14 +258,14 @@ async def call_tool(name: str, arguments: dict):
         user_path = arguments["path"]
         try:
             fpath = safe_join(indexer.kb_dir, user_path)
-        except Exception:
+        except ValueError:
             return [TextContent(type="text", text="非法路径")]
         if not fpath.exists() or not fpath.is_file():
             return [TextContent(type="text", text=f"文件不存在: {user_path}")]
         return [TextContent(type="text", text=fpath.read_text(encoding="utf-8", errors="replace"))]
 
     if name == "refresh_index":
-        stats = indexer.index_knowledge()
+        stats = await asyncio.to_thread(indexer.index_knowledge)
         return [TextContent(type="text", text=json.dumps({"ok": True, "stats": stats}, ensure_ascii=False, indent=2))]
 
     raise ValueError(f"未知工具: {name}")
@@ -273,7 +282,7 @@ async def list_resources():
         uri = f"kb:///{rel_path}"
         try:
             size = Path(fpath).stat().st_size
-        except Exception:
+        except OSError:
             size = None
         resources.append(
             Resource(
@@ -346,18 +355,32 @@ def build_starlette_app(token: str | None, transport: str):
     from starlette.routing import Mount, Route
     from starlette.types import Receive, Scope, Send
 
-    def check_token(scope: Scope):
+    def check_token(scope: Scope, token: str | None) -> bool:
+        """
+        验证请求 token。
+        支持三种方式：
+        1. Authorization: Bearer <token>
+        2. X-MCP-Token: <token>
+        3. ?token=<token> (仅当 token 已设置时生效)
+        注意：生产环境应通过 HTTPS 部署，防止 token 在传输过程中被截获。
+        """
         if not token:
             return True
+        import secrets
         headers = {k.decode("latin1").lower(): v.decode("latin1") for k, v in scope.get("headers", [])}
         auth = headers.get("authorization", "")
         x_token = headers.get("x-mcp-token", "")
+        query_token = dict(scope.get("query_string", b"").decode().split("=") for p in scope.get("root_path", "").split("&") if "=" in p).get("token", "")
         if auth.startswith("Bearer "):
-            return auth.removeprefix("Bearer ").strip() == token
-        return x_token.strip() == token
+            return secrets.compare_digest(auth.removeprefix("Bearer ").strip(), token)
+        if x_token:
+            return secrets.compare_digest(x_token.strip(), token)
+        if query_token:
+            return secrets.compare_digest(query_token, token)
+        return False
 
     async def guard(scope: Scope, receive: Receive, send: Send, next_app):
-        if not check_token(scope):
+        if not check_token(scope, token):
             await Response("Unauthorized", status_code=401)(scope, receive, send)
             return
         await next_app(scope, receive, send)

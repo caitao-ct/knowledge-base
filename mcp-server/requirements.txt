@@ -1,6 +1,6 @@
-chromadb
-sentence-transformers
-mcp
-starlette
-uvicorn
-sse-starlette
+chromadb>=0.4.0
+sentence-transformers>=2.0.0
+mcp>=0.9.0
+starlette>=0.27.0
+uvicorn>=0.20.0
+sse-starlette>=0.10.0
